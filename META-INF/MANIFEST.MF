@@ -1,5 +1,5 @@
 Manifest-Version: 1.0
-Bnd-LastModified: 1433460936132
+Bnd-LastModified: 1433767293020
 Build-Jdk: 1.7.0_79
 Built-By: srp
 Bundle-Activator: uky.aag.l4lbapp.Activator
@@ -12,13 +12,14 @@ Export-Package: uky.aag.l4lbapp;uses:="org.opendaylight.controller.sal.f
  lowprogrammer,org.opendaylight.controller.sal.core,org.apache.felix.dm,
  org.opendaylight.controller.switchmanager,org.opendaylight.controller.s
  al.packet,org.slf4j,org.opendaylight.controller.sal.action,org.opendayl
- ight.controller.sal.match,org.opendaylight.controller.sal.utils";versio
- n="0.1.0"
+ ight.controller.sal.utils,org.osgi.framework,org.opendaylight.controlle
+ r.sal.match";version="0.1.0"
 Import-Package: org.apache.felix.dm;version="[3.0,4)",org.opendaylight.c
  ontroller.sal.action;version="[0.7,1)",org.opendaylight.controller.sal.
  core;version="[0.7,1)",org.opendaylight.controller.sal.flowprogrammer;v
  ersion="[0.7,1)",org.opendaylight.controller.sal.match;version="[0.7,1)
  ",org.opendaylight.controller.sal.packet;version="[0.7,1)",org.opendayl
  ight.controller.sal.utils;version="[0.7,1)",org.opendaylight.controller
- .switchmanager;version="[0.7,1)",org.slf4j;version="[1.7,2)"
+ .switchmanager;version="[0.7,1)",org.osgi.framework;version="[1.5,2)",o
+ rg.slf4j;version="[1.7,2)"
 Tool: Bnd-1.50.0
