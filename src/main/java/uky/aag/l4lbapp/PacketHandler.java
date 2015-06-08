@@ -200,7 +200,7 @@ public class PacketHandler implements IListenDataPacket {
 					if (port_range.inForwardingRange(dstport)){
 						actions.add(new SetTpDst(port_range.fwd_port)); // Port-forwarding occurs here
 						rmatch.setField(MatchType.TP_SRC, port_range.fwd_port);
-						ractions.add(new SetTpSrc(srcport));
+						ractions.add(new SetTpSrc(dstport));
 						segmt.setDestinationPort(port_range.fwd_port);
 						System.out.println("dstport == 5000");
 						actions.add( new Output( out_port));
