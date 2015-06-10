@@ -3,10 +3,9 @@
 
 	<modelVersion>4.0.0</modelVersion>
 
-	<groupId>uky.aag.l4lbapp</groupId>
-	<artifactId>l4lbapp</artifactId>
+	<groupId>uky.aag.myportfwd</groupId>
+	<artifactId>myportfwd</artifactId>
 	<version>0.1</version>
-	<packaging>bundle</packaging>
 
 	<build>
 		<plugins>
@@ -21,10 +20,10 @@
 							*
 						</Import-Package>
                         <Export-Package>
-                            uky.aag.l4lbapp
+                            uky.aag.myportfwd
 						</Export-Package>
 						<Bundle-Activator>
-                            uky.aag.l4lbapp.Activator
+                            uky.aag.myportfwd.Activator
 						</Bundle-Activator>
 					</instructions>
 					<manifestLocation>${project.basedir}/META-INF</manifestLocation>
@@ -73,4 +72,5 @@
 			</releases>
 		</repository>
 	</repositories>
+	<packaging>bundle</packaging>
 </project>

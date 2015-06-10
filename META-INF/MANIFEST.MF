@@ -1,19 +1,19 @@
 Manifest-Version: 1.0
-Bnd-LastModified: 1433777903381
+Bnd-LastModified: 1433942336839
 Build-Jdk: 1.7.0_79
 Built-By: srp
-Bundle-Activator: uky.aag.l4lbapp.Activator
+Bundle-Activator: uky.aag.myportfwd.Activator
 Bundle-ManifestVersion: 2
-Bundle-Name: l4lbapp
-Bundle-SymbolicName: uky.aag.l4lbapp
+Bundle-Name: myportfwd
+Bundle-SymbolicName: uky.aag.myportfwd
 Bundle-Version: 0.1.0
 Created-By: Apache Maven Bundle Plugin
-Export-Package: uky.aag.l4lbapp;uses:="org.opendaylight.controller.sal.f
- lowprogrammer,org.opendaylight.controller.sal.core,org.apache.felix.dm,
- org.opendaylight.controller.switchmanager,org.opendaylight.controller.s
- al.packet,org.slf4j,org.opendaylight.controller.sal.utils,org.opendayli
- ght.controller.sal.action,org.osgi.framework,org.opendaylight.controlle
- r.sal.match";version="0.1.0"
+Export-Package: uky.aag.myportfwd;uses:="org.opendaylight.controller.sal
+ .flowprogrammer,org.opendaylight.controller.sal.core,org.apache.felix.d
+ m,org.opendaylight.controller.switchmanager,org.opendaylight.controller
+ .sal.packet,org.slf4j,org.opendaylight.controller.sal.utils,org.openday
+ light.controller.sal.action,org.osgi.framework,org.opendaylight.control
+ ler.sal.match";version="0.1.0"
 Import-Package: org.apache.felix.dm;version="[3.0,4)",org.opendaylight.c
  ontroller.sal.action;version="[0.7,1)",org.opendaylight.controller.sal.
  core;version="[0.7,1)",org.opendaylight.controller.sal.flowprogrammer;v

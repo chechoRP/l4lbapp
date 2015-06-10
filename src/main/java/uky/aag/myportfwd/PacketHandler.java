@@ -1,4 +1,8 @@
-package uky.aag.l4lbapp;
+package uky.aag.myportfwd;
+
+/* For full class description and methods check:
+ * https://developer.cisco.com/media/XNCJavaDocs/overview-summary.html
+ */
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -48,29 +52,30 @@ public class PacketHandler implements IListenDataPacket {
 	private IFlowProgrammerService flowProgrammerService;
 	private ISwitchManager switchManager;
 	
-
+	/* Configuration class for the port forwarding bundle*/
     public class PortFwdInfo {
-        public short lb;
-        public short ub;
+        public short low_bound;
+        public short up_bound;
         public short fwd_port;
 
         public PortFwdInfo(short lb, short ub, short port) {
-            this.lb = lb;
-            this.ub = ub;
+            this.low_bound = lb;
+            this.up_bound = ub;
             this.fwd_port = port;
         }
         
         public boolean inForwardingRange(short port){
-        	return port >= lb && port <= ub;
+        	return port >= low_bound && port <= up_bound;
         }
+        
     }
     
     PortFwdInfo port_range;
     
     void init() {
-    	/* Define the port range and port where traffic will be redirected*/
+    	/* Define the port range and port where traffic within this range will be forwarded to*/
         port_range = new PortFwdInfo((short)5000,(short)6000,(short)5050);
-        // Uninstall any conflicting bundle
+        // Remove any conflicting bundle
         BundleContext bundleContext = FrameworkUtil.getBundle(this.getClass()).getBundleContext();
         for(Bundle bundle : bundleContext.getBundles()) {
             if (bundle.getSymbolicName().contains("simpleforwarding") || 
@@ -87,7 +92,6 @@ public class PacketHandler implements IListenDataPacket {
     }
 
 	static private InetAddress intToInetAddress(int i) {
-//		byte b[] = new byte[] { (byte) ((i>>24)&0xff), (byte) ((i>>16)&0xff), (byte) ((i>>8)&0xff), (byte) (i&0xff) };
 		InetAddress addr;
 		try {
 			addr = InetAddress.getByAddress(BitBufferHelper.toByteArray(i));
@@ -146,21 +150,22 @@ public class PacketHandler implements IListenDataPacket {
 		}
 	}
 
+	/* Method that handles Packet-In events. Where all the flow logic is implemented */
 	public PacketResult receiveDataPacket(RawPacket inPkt) {
 		log.trace("Received data packet at controller: " );
 
-		// Determine incoming port, node and received packet. 
+		// Determine incoming port and node, and decode received packet. 
 		NodeConnector in_port = inPkt.getIncomingNodeConnector();
 		Node node = in_port.getNode();
 		Packet l2frame = dataPacketService.decodeDataPacket(inPkt);
 
 		if (l2frame instanceof Ethernet) {
 			Packet l3Pkt = l2frame.getPayload();
-			System.out.println("Ethernet:" + l2frame.toString());
-			/*If needed extract MAC addresses from l3Pkt */
+//			System.out.println("Ethernet: " + l2frame.toString());
+			/*If needed you can extract MAC addresses from l3Pkt */
 			if (l3Pkt instanceof IPv4) {
 				IPv4 ipv4Pkt = (IPv4) l3Pkt;
-				System.out.println("IPv4 " + ipv4Pkt.toString());
+//				System.out.println("IPv4 " + ipv4Pkt.toString());
 				Packet segmt_or_dtgrm = ipv4Pkt.getPayload();
 				int nwdst = ipv4Pkt.getDestinationAddress();
 				int nwsrc = ipv4Pkt.getSourceAddress();
@@ -168,7 +173,7 @@ public class PacketHandler implements IListenDataPacket {
 				InetAddress src_addr = intToInetAddress(nwsrc);
 				if ( segmt_or_dtgrm instanceof TCP ) {
 					TCP segmt = (TCP) segmt_or_dtgrm;
-					System.out.println("TCP " + segmt.toString());
+					System.out.println(segmt.toString());
 					short dstport = segmt.getDestinationPort();
 					short srcport = segmt.getSourcePort();
 
@@ -193,7 +198,7 @@ public class PacketHandler implements IListenDataPacket {
 					if (port_range.inForwardingRange(dstport)){
 						actions.add(new SetTpDst(port_range.fwd_port)); // Port-forwarding occurs here
 						actions.add( new Output( out_port));
-						segmt.setDestinationPort(port_range.fwd_port); // Modify original packet	
+						segmt.setDestinationPort(port_range.fwd_port); // Modify original packet likewise.	
 
 						reverse_match.setField(MatchType.TP_SRC, port_range.fwd_port);
 						ractions.add(new SetTpSrc(dstport));
@@ -208,14 +213,31 @@ public class PacketHandler implements IListenDataPacket {
 						}
 						inPkt.setOutgoingNodeConnector( out_port );
 						dataPacketService.transmitDataPacket( inPkt );
-					} 
+					} else if (segmt.toString().contains("SequenceNumber: 00000000")){
+						/* Sometimes the second packet from the 3-way handshake is sent out
+						 * before the the reverse flow is actually installed. Should this happen,
+						 * the packet will be forwarded to the controller and ignored. */
+						return PacketResult.IGNORED;
+					} else {
+						/* If the destination port is out of the defined range we will 
+						 * install a rule that will drop all the traffic directed to such
+						 * port. 
+						 */
+						actions.add(new Drop());
+						/* Clear source port, otherwise a new flow will be installed for every
+						 * new connection and we want to ban access to just the dest port. 
+						 */
+						match.clearField(MatchType.TP_SRC); 
+						Status st = programFlow(node, match, actions ,(short)10,(short)120);
+						return PacketResult.IGNORED;
+					}
 					// Forward this packet.
-
 					return PacketResult.CONSUME;
 				} 
 				else if ( segmt_or_dtgrm instanceof UDP ) {
 					/* If UDP traffic is detected, we will install flow entries
-					 * that allow any UDP traffic to go through (i.e. port fields are wildcarded) 
+					 * that allow any UDP traffic to go through (i.e. port fields are wildcarded
+					 * but the network protocol will be set to UDP)
 					 */
 					UDP dtgrm = (UDP) segmt_or_dtgrm;
 					short dstport = dtgrm.getDestinationPort();
@@ -262,7 +284,7 @@ public class PacketHandler implements IListenDataPacket {
 		// Get all the active ports on the switch
 		Set<NodeConnector> ports = switchManager.getUpNodeConnectors( in.getNode() );						
 
-		// Find the first out port that is different from the in port.
+		// Find the first out-port that is different from the in-port.
 		/* If switch only has two ports, it is the same as flooding. 
 		 * A more complex 
 		 * routine should be used for other applications like
@@ -277,13 +299,13 @@ public class PacketHandler implements IListenDataPacket {
 		}
 		return out;
 	}
-	/*Shortcut function for programming flows. */
+	/*Helper function for programming flows to clean out code */
 	public Status programFlow(Node node, Match match, List<Action> actions, short prio, short st_out){
 		Flow flow = new Flow(match,actions);
 		flow.setPriority(prio);
 		flow.setIdleTimeout(st_out);
 		System.out.println("Installing " + match.getField(MatchType.NW_PROTO).toString() + " flow : " + flow.toString());
-		return flowProgrammerService.addFlow( node, flow );
+		return flowProgrammerService.addFlowAsync(node, flow );
 		
 	}
 }
