@@ -46,12 +46,12 @@ import org.slf4j.LoggerFactory;
 public class PacketHandler implements IListenDataPacket {
 
 	// Important constant values for our application
-	
+
 	private static final Logger log = LoggerFactory.getLogger(PacketHandler.class);
 	private IDataPacketService dataPacketService;
 	private IFlowProgrammerService flowProgrammerService;
 	private ISwitchManager switchManager;
-	
+
 	/* Configuration class for the port forwarding bundle*/
     public class PortFwdInfo {
         public short low_bound;
@@ -63,31 +63,31 @@ public class PacketHandler implements IListenDataPacket {
             this.up_bound = ub;
             this.fwd_port = port;
         }
-        
+
         public boolean inForwardingRange(short port){
         	return port >= low_bound && port <= up_bound;
         }
-        
+
     }
-    
+
     PortFwdInfo port_range;
-    
+
     void init() {
     	/* Define the port range and port where traffic within this range will be forwarded to*/
         port_range = new PortFwdInfo((short)5000,(short)6000,(short)5050);
         // Remove any conflicting bundle
         BundleContext bundleContext = FrameworkUtil.getBundle(this.getClass()).getBundleContext();
         for(Bundle bundle : bundleContext.getBundles()) {
-            if (bundle.getSymbolicName().contains("simpleforwarding") || 
+            if (bundle.getSymbolicName().contains("simpleforwarding") ||
             		bundle.getSymbolicName().contains("arphandler")) {
                 try {
                     bundle.uninstall();
                 } catch (BundleException e) {
-                    log.error("Exception in Bundle uninstall "+e.getMessage()); 
-                }   
-            }   
-        }   
- 
+                    log.error("Exception in Bundle uninstall "+e.getMessage());
+                }
+            }
+        }
+
         log.info("Initialized");
     }
 
@@ -154,7 +154,7 @@ public class PacketHandler implements IListenDataPacket {
 	public PacketResult receiveDataPacket(RawPacket inPkt) {
 		log.trace("Received data packet at controller: " );
 
-		// Determine incoming port and node, and decode received packet. 
+		// Determine incoming port and node, and decode received packet.
 		NodeConnector in_port = inPkt.getIncomingNodeConnector();
 		Node node = in_port.getNode();
 		Packet l2frame = dataPacketService.decodeDataPacket(inPkt);
@@ -178,17 +178,17 @@ public class PacketHandler implements IListenDataPacket {
 					short srcport = segmt.getSourcePort();
 
 					NodeConnector out_port = getOutPort(in_port);
-					
+
 					/* Create match for incoming flow*/
 					Match match = new Match();
 					List<Action> actions = new LinkedList<Action>();
-					
-					match.setField( MatchType.DL_TYPE, EtherTypes.IPv4.shortValue()); 
+
+					match.setField( MatchType.DL_TYPE, EtherTypes.IPv4.shortValue());
 					match.setField( MatchType.NW_PROTO, IPProtocols.TCP.byteValue());
 					match.setField( MatchType.NW_SRC, src_addr);
 					match.setField( MatchType.NW_DST, dst_addr);
-					match.setField( MatchType.TP_DST, dstport ); 
-					match.setField( MatchType.TP_SRC, srcport ); 
+					match.setField( MatchType.TP_DST, dstport );
+					match.setField( MatchType.TP_SRC, srcport );
 					/* If dst port is in the forwarding range install
 					 * two-way flows with reversed match fields for reply messages.
 					 */
@@ -198,12 +198,12 @@ public class PacketHandler implements IListenDataPacket {
 					if (port_range.inForwardingRange(dstport)){
 						actions.add(new SetTpDst(port_range.fwd_port)); // Port-forwarding occurs here
 						actions.add( new Output( out_port));
-						segmt.setDestinationPort(port_range.fwd_port); // Modify original packet likewise.	
+						segmt.setDestinationPort(port_range.fwd_port); // Modify original packet likewise.
 
 						reverse_match.setField(MatchType.TP_SRC, port_range.fwd_port);
 						ractions.add(new SetTpSrc(dstport));
 						ractions.add(new Output(in_port));
-						
+
 						Status st = programFlow(node,match,actions,(short)10,(short)40);
 						st = programFlow(node, reverse_match, ractions, (short)10,(short)40);
 						// Handle flow installation errors.
@@ -219,21 +219,21 @@ public class PacketHandler implements IListenDataPacket {
 						 * the packet will be forwarded to the controller and ignored. */
 						return PacketResult.IGNORED;
 					} else {
-						/* If the destination port is out of the defined range we will 
+						/* If the destination port is out of the defined range we will
 						 * install a rule that will drop all the traffic directed to such
-						 * port. 
+						 * port.
 						 */
 						actions.add(new Drop());
 						/* Clear source port, otherwise a new flow will be installed for every
-						 * new connection and we want to ban access to just the dest port. 
+						 * new connection and we want to ban access to just the dest port.
 						 */
-						match.clearField(MatchType.TP_SRC); 
+						match.clearField(MatchType.TP_SRC);
 						Status st = programFlow(node, match, actions ,(short)10,(short)120);
 						return PacketResult.IGNORED;
 					}
 					// Forward this packet.
 					return PacketResult.CONSUME;
-				} 
+				}
 				else if ( segmt_or_dtgrm instanceof UDP ) {
 					/* If UDP traffic is detected, we will install flow entries
 					 * that allow any UDP traffic to go through (i.e. port fields are wildcarded
@@ -246,13 +246,13 @@ public class PacketHandler implements IListenDataPacket {
 					NodeConnector out_port = getOutPort(in_port);
 					// One way flow match
 					Match match = new Match();
-					match.setField( MatchType.DL_TYPE, EtherTypes.IPv4.shortValue()); 
+					match.setField( MatchType.DL_TYPE, EtherTypes.IPv4.shortValue());
 					match.setField( MatchType.NW_PROTO, IPProtocols.UDP.byteValue());
 					match.setField(MatchType.NW_SRC, src_addr);
 					match.setField( MatchType.NW_DST, dst_addr);
 					// Reverse match definition
 					Match rmatch = new Match();
-					rmatch.setField( MatchType.DL_TYPE, EtherTypes.IPv4.shortValue()); 
+					rmatch.setField( MatchType.DL_TYPE, EtherTypes.IPv4.shortValue());
 					rmatch.setField( MatchType.NW_PROTO, IPProtocols.UDP.byteValue());
 					rmatch.setField(MatchType.NW_SRC,dst_addr );
 					rmatch.setField( MatchType.NW_DST,src_addr );
@@ -261,7 +261,7 @@ public class PacketHandler implements IListenDataPacket {
 					List<Action> ractions = new LinkedList<Action>();
 					actions.add( new Output( out_port ) );
 					ractions.add (new Output(in_port));
-					
+
 					// Install the flow into the switch's table.
 					Status flowStatus = programFlow(node, match, actions, (short)10, (short)60);
 					flowStatus = programFlow(node, rmatch, ractions, (short)10, (short)60);
@@ -273,20 +273,20 @@ public class PacketHandler implements IListenDataPacket {
 				} // fi UDP/TCP
 			} //fi IPv4
 		} //fi Ethernet
-		
-		
+
+
 		// We did not process the packet -> let someone else do the job.
 		return PacketResult.IGNORED;
 	}
-	
+
 	public NodeConnector getOutPort(NodeConnector in){
 		NodeConnector out = null;
 		// Get all the active ports on the switch
-		Set<NodeConnector> ports = switchManager.getUpNodeConnectors( in.getNode() );						
+		Set<NodeConnector> ports = switchManager.getUpNodeConnectors( in.getNode() );
 
 		// Find the first out-port that is different from the in-port.
-		/* If switch only has two ports, it is the same as flooding. 
-		 * A more complex 
+		/* If switch only has two ports, it is the same as flooding.
+		 * A more complex
 		 * routine should be used for other applications like
 		 * load balancers or traffic duplicators.*/
 		Iterator<NodeConnector> i = ports.iterator();
@@ -306,6 +306,6 @@ public class PacketHandler implements IListenDataPacket {
 		flow.setIdleTimeout(st_out);
 		System.out.println("Installing " + match.getField(MatchType.NW_PROTO).toString() + " flow : " + flow.toString());
 		return flowProgrammerService.addFlowAsync(node, flow );
-		
+
 	}
 }
